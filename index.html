@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feel old yet?</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        img {
+            max-width: 100%;
+            max-height: 100vh;
+            border: 2px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+<img id="random-image" src="" alt="Feel old yet?">
+
+<script>
+    // Function to fetch the manifest and select a random image
+    async function loadRandomImage() {
+        try {
+            // Fetch the manifest file
+            const response = await fetch('output/manifest.json');
+            const manifest = await response.json();
+
+            // Get the list of image filenames
+            const images = manifest.images;
+
+            // Ensure there are images in the manifest
+            if (images.length === 0) {
+                throw new Error('No images found in manifest.');
+            }
+
+            // Select a random image
+            const randomIndex = Math.floor(Math.random() * images.length);
+            const randomImage = images[randomIndex];
+
+            // Set the image source
+            document.getElementById('random-image').src = `output/${randomImage}`;
+        } catch (error) {
+            console.error('Error loading image:', error);
+            document.body.innerHTML = '<p>Error loading image. Please try again later.</p>';
+        }
+    }
+
+    // Load a random image when the page loads
+    window.onload = loadRandomImage;
+
+    var a2a_config = a2a_config || {};
+a2a_config.overlays = a2a_config.overlays || [];
+a2a_config.overlays.push({
+    services: ['pinterest', 'facebook', 'tumblr', 'reddit', 'whatsapp', 'twitter', 'email', 'telegram'],
+    size: '40',
+    style: 'horizontal',
+    position: 'bottom right',
+});
+
+</script>
+
+<script async src="https://static.addtoany.com/menu/page.js"></script>
+</body>
+</html>
