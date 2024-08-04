@@ -79,7 +79,7 @@ def create_birthday_image(input_image, output_image_path, name, age, font_path='
         raise ValueError("Text cannot be fit into the image")
 
     # Create the text string
-    text = f"Did you know that {name} came out {age} years ago today!"
+    text = f"Did you know that {name} came out {age} years ago!"
 
     # Fit text to image
     max_text_width = output_width - 40
