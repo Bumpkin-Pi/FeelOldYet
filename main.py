@@ -20,7 +20,16 @@ def generate_random_years(age):
 def random_string(length=10):
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
-def create_birthday_image(input_image, output_image_path, name, age, font_path='impact.ttf', initial_font_size=100):
+def compress_image(image, quality=85):
+    # Create a BytesIO object to save the image
+    buffer = BytesIO()
+    # Save the image to the buffer with the specified quality
+    image.save(buffer, format="JPEG", quality=quality, optimize=True)
+    buffer.seek(0)
+    # Open the image from the buffer
+    return Image.open(buffer)
+
+def create_birthday_image(input_image, output_image_path, name, age, font_path='impact.ttf', initial_font_size=100, quality=85):
     # Define the dimensions for the final image (4:3 aspect ratio)
     output_width = 1200
     output_height = 900
@@ -113,10 +122,13 @@ def create_birthday_image(input_image, output_image_path, name, age, font_path='
     watermark = create_watermark("feeloldyet.net", font_path)
     final_image.paste(watermark, (10, 10), watermark)
 
-    # Save the final image
-    final_image.save(output_image_path)
+    # Compress the final image
+    final_image = compress_image(final_image, quality)
 
-def process_images(json_file='images.json', output_folder='output', font_path='impact.ttf'):
+    # Save the final image
+    final_image.save(output_image_path, "JPEG", quality=quality, optimize=True)
+
+def process_images(json_file='images.json', output_folder='output', font_path='impact.ttf', quality=85):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -143,11 +155,11 @@ def process_images(json_file='images.json', output_folder='output', font_path='i
                     age = calculate_age(year)
                     final_age = generate_random_years(age)
                     hash_object = hashlib.md5(name.encode())
-                    filename = hash_object.hexdigest()[:10] + '.png'
+                    filename = hash_object.hexdigest()[:10] + '.jpg'  # Save as JPEG
                     output_image_path = os.path.join(output_folder, filename)
 
                     # Create the output image
-                    create_birthday_image(image, output_image_path, name, final_age, font_path)
+                    create_birthday_image(image, output_image_path, name, final_age, font_path, quality=quality)
                     image_list.append(filename)
                     print(f"Processed {url}")
                 else:
@@ -161,4 +173,4 @@ def process_images(json_file='images.json', output_folder='output', font_path='i
         json.dump({"images": image_list}, manifest_file, indent=4)
 
 # Example usage
-process_images('images.json', 'output', 'impact.ttf')
+process_images('images.json', 'output', 'impact.ttf', quality=12)
