@@ -1,52 +1,39 @@
+
+
+
+
 import os
 import json
 import random
+import string
+import requests
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import textwrap
-
+from io import BytesIO
 
 def calculate_age(year):
     current_year = 2024  # Update this if needed
     return current_year - year
-
 
 def generate_random_years(age):
     percentage = random.uniform(0.10, 0.25)
     extra_years = int(age * percentage) + 3
     return age + extra_years
 
+def random_string(length=10):
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
-def create_watermark(text, font_path='impact.ttf', font_size=50):
-    # Create a transparent image for the watermark
-    watermark_image = Image.new('RGBA', (500, 100), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(watermark_image)
-    font = ImageFont.truetype(font_path, font_size)
-
-    # Draw the watermark text
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
-    text_position = ((watermark_image.width - text_width) // 2, (watermark_image.height - text_height) // 2)
-    draw.text(text_position, text, font=font, fill=(255, 255, 255, 180))  # White text with 70% transparency
-
-    return watermark_image
-
-
-def create_birthday_image(input_image_path, output_image_path, name, age, font_path='impact.ttf',
-                          initial_font_size=100, quality=85):
-    # Load the image
-    original_image = Image.open(input_image_path)
-
+def create_birthday_image(input_image, output_image_path, name, age, font_path='impact.ttf', initial_font_size=100):
     # Define the dimensions for the final image (4:3 aspect ratio)
     output_width = 1200
     output_height = 900
 
     # Create a blurred background
-    blurred_background = original_image.resize((output_width, output_height), Image.LANCZOS)
+    blurred_background = input_image.resize((output_width, output_height), Image.LANCZOS)
     blurred_background = blurred_background.filter(ImageFilter.GaussianBlur(20))
 
     # Calculate dimensions to resize the original image
-    width, height = original_image.size
+    width, height = input_image.size
     aspect_ratio = width / height
     if aspect_ratio > output_width / output_height:
         new_width = output_width
@@ -56,7 +43,7 @@ def create_birthday_image(input_image_path, output_image_path, name, age, font_p
         new_width = int(output_height * aspect_ratio)
 
     # Resize the original image
-    resized_image = original_image.resize((new_width, new_height), Image.LANCZOS)
+    resized_image = input_image.resize((new_width, new_height), Image.LANCZOS)
 
     # Create a new image with the specified dimensions
     final_image = Image.new('RGB', (output_width, output_height))
@@ -110,46 +97,70 @@ def create_birthday_image(input_image_path, output_image_path, name, age, font_p
         draw.text(text_position, line, font=font, fill='white')
         current_height += draw.textbbox((0, 0), line, font=font)[3] + 10
 
-    # Create and add watermark
-    watermark = create_watermark("feel-old-yet.com", font_path)
-    watermark_position = (10, 10)  # Top-left corner
-    final_image.paste(watermark, watermark_position, watermark)  # Paste watermark with transparency
+    # Add watermark
+    def create_watermark(text, font_path='impact.ttf', font_size=50):
+        # Create a transparent image for the watermark
+        watermark_image = Image.new('RGBA', (500, 100), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(watermark_image)
+        font = ImageFont.truetype(font_path, font_size)
 
-    # Save the final image with compression
-    final_image.save(output_image_path, quality=quality, optimize=True, format="JPEG")
+        # Draw the watermark text
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        text_position = ((watermark_image.width - text_width) // 2, (watermark_image.height - text_height) // 2)
+        draw.text(text_position, text, font=font, fill=(255, 255, 255, 180))  # White text with 70% transparency
 
+        return watermark_image
 
-def process_images(input_folder='images', output_folder='output', font_path='impact.ttf', quality=85):
+    watermark = create_watermark("feeloldyet.net", font_path)
+    final_image.paste(watermark, (10, 10), watermark)
+
+    # Save the final image
+    final_image.save(output_image_path)
+
+def process_images(json_file='images.json', output_folder='output', font_path='impact.ttf'):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
+    # Clear the output folder
+    for filename in os.listdir(output_folder):
+        file_path = os.path.join(output_folder, filename)
+        if os.path.isfile(file_path):
+            os.unlink(file_path)
+
     image_list = []
 
-    for filename in os.listdir(input_folder):
-        if filename.endswith('.png'):
-            # Extract name and year from the filename
-            basename = os.path.splitext(filename)[0]
-            try:
-                name, year = basename.split(',')
-                year = int(year)
-                age = calculate_age(year)
-                final_age = generate_random_years(age)
-                input_image_path = os.path.join(input_folder, filename)
-                output_filename = f"{name}.jpg"
-                output_image_path = os.path.join(output_folder, output_filename)
+    with open(json_file, 'r') as file:
+        data = json.load(file)
+        images = data.get('images', [])
 
-                # Create the output image
-                create_birthday_image(input_image_path, output_image_path, name, final_age, font_path, quality=quality)
-                image_list.append(output_filename)
-                print(f"Processed {filename}")
-            except ValueError:
-                print(f"Skipping invalid file: {filename}")
+        for image_info in images:
+            try:
+                url = image_info['URL']
+                year = int(image_info['YEAR'])
+                name = image_info['NAME']
+                response = requests.get(url)
+                if response.status_code == 200:
+                    image = Image.open(BytesIO(response.content))
+                    age = calculate_age(year)
+                    final_age = generate_random_years(age)
+                    random_filename = random_string() + ".png"
+                    output_image_path = os.path.join(output_folder, random_filename)
+
+                    # Create the output image
+                    create_birthday_image(image, output_image_path, name, final_age, font_path)
+                    image_list.append(random_filename)
+                    print(f"Processed {url}")
+                else:
+                    print(f"Failed to fetch image from {url}")
+            except (ValueError, KeyError) as e:
+                print(f"Skipping invalid entry: {image_info} - {e}")
 
     # Save the manifest.json
     manifest_path = os.path.join(output_folder, 'manifest.json')
     with open(manifest_path, 'w') as manifest_file:
         json.dump({"images": image_list}, manifest_file, indent=4)
 
-
 # Example usage
-process_images('images', 'output', 'impact.ttf', quality=85)
+process_images('images.json', 'output', 'impact.ttf')
