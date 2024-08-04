@@ -1,7 +1,4 @@
-
-
-
-
+import hashlib
 import os
 import json
 import random
@@ -145,12 +142,13 @@ def process_images(json_file='images.json', output_folder='output', font_path='i
                     image = Image.open(BytesIO(response.content))
                     age = calculate_age(year)
                     final_age = generate_random_years(age)
-                    random_filename = random_string() + ".png"
-                    output_image_path = os.path.join(output_folder, random_filename)
+                    hash_object = hashlib.md5(name.encode())
+                    filename = hash_object.hexdigest()[:10] + '.png'
+                    output_image_path = os.path.join(output_folder, filename)
 
                     # Create the output image
                     create_birthday_image(image, output_image_path, name, final_age, font_path)
-                    image_list.append(random_filename)
+                    image_list.append(filename)
                     print(f"Processed {url}")
                 else:
                     print(f"Failed to fetch image from {url}")
