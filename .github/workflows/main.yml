@@ -1,0 +1,57 @@
+name: Generate Images and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # or the branch you want to trigger the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8  # Specify the Python version you need
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install requests pillow
+
+    - name: Generate images
+      run: |
+        source venv/bin/activate
+        python main.py
+
+    - name: Upload images to artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: main
+        path: output/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Only deploy from the main branch
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Download images from artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: main
+        path: output/
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./output  # Directory to publish to GitHub Pages
